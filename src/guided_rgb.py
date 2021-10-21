@@ -56,8 +56,22 @@ def show_img(t, streamlit=False, display_el=None):
         display(img)
 
 
+def range_loss(input):
+    # taken from this colab https://colab.research.google.com/drive/1QBsaDAZv8np29FPbvjffbE1eytoJcsgA#scrollTo=YHOj78Yvx8jP
+    return (input - input.clamp(-1, 1)).pow(2).mean([1, 2, 3])
+
+
+def tv_loss(input):
+    # taken from this colab https://colab.research.google.com/drive/1QBsaDAZv8np29FPbvjffbE1eytoJcsgA#scrollTo=YHOj78Yvx8jP
+    """L2 total variation loss, as in Mahendran et al."""
+    input = F.pad(input, (0, 1, 0, 1), 'replicate')
+    x_diff = input[..., :-1, 1:] - input[..., :-1, :-1]
+    y_diff = input[..., 1:, :-1] - input[..., :-1, :-1]
+    return (x_diff**2 + y_diff**2).mean([1, 2, 3])
+
+
 def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32,
-        starting_learning_rate=1e-2, epochs=1, loss_lerp=0.6,
+        starting_learning_rate=1e-2, epochs=1, loss_lerp=0.6, tv_loss_weight=0, range_loss_weight=150,
         use_weighted_ratios=True, streamlit=False, save_every=None, show_every=500, ):
     z2 = F.interpolate(t, (size, size), mode='bicubic')
     t = z2.detach().clone().requires_grad_(True)
@@ -91,6 +105,12 @@ def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32,
             for embed, ratio in zip(embeds, weighted_ratios):
                 x = F.normalize(embed, dim=-1)
                 loss += torch.sqrt(criterion(x, y)) * ratio
+
+            for crop, ratio in zip(crops, weighted_ratios):
+                if range_loss_weight:
+                    loss += range_loss(crop[None, ...]).sum() * range_loss_weight
+                if tv_loss_weight:
+                    loss += tv_loss(crop[None, ...]).sum() * tv_loss_weight
 
             loss.backward()
             opt.step()

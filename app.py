@@ -24,6 +24,8 @@ min_size = st.number_input('Min size', 32, 2048, 64)
 default_steps = st.number_input('Default number of steps per epoch', 1, value=2000, step=100)
 learning_rate = st.number_input('Starting learning Rate', 0., value=1e-2)
 epochs = st.number_input('Epochs', 1, value=1)
+tv_loss_weight = st.number_input('Total Variation Loss Weight', 0., value=0.01, help='increase to reduce image noise. 0.01 is a good start')
+range_loss_weight = st.number_input('Range Loss Weight', 0., value=150., help='increase to reduce image burn. 150 is a good start')
 
 
 save_frames_every = st.sidebar.number_input('Save a frame every n iter (0 for no progress video)', 0, value=25)
@@ -32,8 +34,16 @@ show_every = st.sidebar.number_input('Show progress every n interations', 1, val
 sizes = get_sizes(max_dim, min_size)
 # TODO: Is this appropriate for cuts??
 cuts = [8, 8, 8, 16, 24, 32, 40][:len(sizes)]  # number of image cuts for CLIP loss per iteration
-max_szs = [64] * len(sizes)  # max cut size (pixels)
-min_szs = [0.2] * len(sizes)  # min cut size (pixel or image size ratio)
+
+# max_sz 64 and min_sz 0.2 produce highly detailed crisp abstract patterns with lots of objects
+# max_sz 224 and min_sz 48 produce blurry image with fewer objects (you can experiment with those)
+st.subheader('Cut sizes!')
+st.text('Max size 64 and min size 0.2 produce highly detailed crisp abstract patterns with lots of objects')
+st.text('Max size 224 and min size 48 produce blurry image with fewer objects (you can experiment with those)')
+max_cut_size = st.number_input('Max cut size', 0.1, value=64.)
+min_cut_size = st.number_input('Min cut size', 0.01, value=0.2)
+max_szs = [max_cut_size] * len(sizes)  # max cut size (pixels)
+min_szs = [min_cut_size] * len(sizes)  # min cut size (pixel or image size ratio)
 
 
 steps = []
@@ -67,6 +77,8 @@ if st.button('Go!'):
             min_sz=min_sz,
             starting_learning_rate=learning_rate,
             epochs=epochs,
+            tv_loss_weight=tv_loss_weight,
+            range_loss_weight=range_loss_weight,
             streamlit=True,
             save_every=save_frames_every,
             show_every=show_every
