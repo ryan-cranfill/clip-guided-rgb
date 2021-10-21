@@ -1,5 +1,6 @@
 import PIL
 import clip
+import math
 import torch
 import streamlit as st
 import torch.nn.functional as F
@@ -43,18 +44,28 @@ def get_crops(img, ratios, max_cut, min_cut):
     return torch.cat([make_crop(img, ratio.item(), max_cut, min_cut) for ratio in ratios])
 
 
-def show_img(t, streamlit=False):
+def show_img(t, streamlit=False, display_el=None):
     img = PIL.Image.fromarray((t.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)[0].cpu().numpy(),
                               'RGB')
     if streamlit:
-        st.image(img)
+        if display_el:
+            with display_el:
+                st.image(img)
+        else:
+            st.image(img)
     else:
         display(img)
 
 
-def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, use_weighted_ratios=True, streamlit=False, save_every=None):
+def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, use_weighted_ratios=True, streamlit=False, save_every=None, show_every=500):
     if streamlit:
         progress = st.progress(0.)
+        img_per_col = 4
+        num_imgs = math.ceil(steps / show_every)
+        num_rows = math.ceil(num_imgs / img_per_col)
+        display_cols = []
+        for i in range(num_rows):
+            display_cols.extend(st.columns(img_per_col))
 
     z2 = F.interpolate(t, (size, size), mode='bicubic')
     t = z2.detach().clone().requires_grad_(True)
@@ -86,8 +97,8 @@ def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, use_weight
             print(loss_avg.item())
             if streamlit:
                 progress.progress(i / steps)
-        if i % 500 == 0:
-            show_img(t, streamlit)
+        if i % show_every == 0:
+            show_img(t, streamlit, display_cols.pop(0))
         if save_every and i % save_every == 0:
             byte = BytesIO()
             saved_frames.append(byte)

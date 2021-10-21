@@ -9,4 +9,4 @@
 - [ ] Training Movie (getting there...)
 
 # Credit
-Much code is cribbed from this notebook is from [here](https://github.com/Sxela/CLIPguidedRGB)
+Much code is cribbed from this notebook [here](https://github.com/Sxela/CLIPguidedRGB)

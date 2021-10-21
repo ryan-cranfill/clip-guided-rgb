@@ -14,7 +14,7 @@ def get_model():
 
 def encode_prompt(model, prompt):
     encoded_prompt = model.encode_text(clip.tokenize(prompt).to(DEVICE))
-    return F.normalize(encoded_prompt, dim=-1)
+    return F.normalize(encoded_prompt, dim=-1)[0]
 
 
 def image_to_jpg(image):

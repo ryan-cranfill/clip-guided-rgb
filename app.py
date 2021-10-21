@@ -18,7 +18,9 @@ y = encode_prompt(model, prompt)
 uploaded_file = st.file_uploader("Upload Base Image (Optional)")
 max_dim = st.number_input('Max Dimension', 64, 2048, 1024)
 default_steps = st.number_input('Default number of steps per resolution', 1, value=2000, step=100)
-save_frames_every = st.number_input('Save a frame every n iter (0 for no progress video)', 0, value=25)
+
+save_frames_every = st.sidebar.number_input('Save a frame every n iter (0 for no progress video)', 0, value=25)
+show_every = st.sidebar.number_input('Show progress every n interations', 1, value=500)
 
 sizes = get_sizes(max_dim, 64)
 # TODO: Is this appropriate for cuts??
@@ -47,7 +49,20 @@ if st.button('Go!'):
         print(size, step, cut)
         progress.progress(i / len(steps))
         st.text(f'Size: {size}')
-        z, gif = fit(model, z, y, size, steps=step, ncut=cut, max_sz=max_sz, min_sz=min_sz, streamlit=True, save_every=save_frames_every)
+        z, gif = fit(
+            model,
+            z,
+            y,
+            size,
+            steps=step,
+            ncut=cut,
+            max_sz=max_sz,
+            min_sz=min_sz,
+            streamlit=True,
+            save_every=save_frames_every,
+            show_every=show_every
+        )
+
         if gif:
             st.image(gif, output_format='GIF')
     st.subheader('DONE')
