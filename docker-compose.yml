@@ -23,6 +23,13 @@ services:
   jupyter:
     <<: *base
     ports:
-      - '8888:8888'  # streamlit
+      - '8888:8888'  # jupyter
     entrypoint: sh -l -c "jupyter lab"
     container_name: clip-rgb-jupyter
+  shell:
+    <<: *base
+    ports:
+      - '8888:8888'  # jupyter
+      - '8501:8501'  # streamlit
+    entrypoint: sh -l -c "zsh"
+    container_name: shell

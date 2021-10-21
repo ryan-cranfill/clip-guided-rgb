@@ -66,11 +66,12 @@ def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32,
     scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.9)
 
     saved_frames = []
+    if streamlit:
+        display_cols = create_display_cols(show_every, steps * epochs)
 
     epoch_iterator = stqdm(range(epochs), desc=f'Epoch') if streamlit else trange(epochs)
     for e in epoch_iterator:
         if streamlit:
-            display_cols = create_display_cols(show_every, steps)
             iterator = stqdm(range(steps), desc=f'Resolution: {size}')
         else:
             iterator = trange(steps)
@@ -97,7 +98,7 @@ def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32,
             if i % 100 == 0:
                 print(loss_avg.item())
             if i % show_every == 0:
-                show_img(t, streamlit, display_cols.pop(0))
+                show_img(t, streamlit, display_cols.pop(0) if streamlit else None)
             if save_every and i % save_every == 0:
                 byte = BytesIO()
                 saved_frames.append(byte)

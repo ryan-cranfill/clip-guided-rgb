@@ -4,6 +4,7 @@
 - if docker: 
   - if you want a streamlit app: `docker-compose up streamlit`
   - if you want a jupyter notebook: `docker-compose up jupyter`
+  - if you want a shell: `docker-compose run shell`
 
 # TODO
 - [ ] Training Movie (getting there...)

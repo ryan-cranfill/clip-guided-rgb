@@ -27,7 +27,7 @@ epochs = st.number_input('Epochs', 1, value=1)
 
 
 save_frames_every = st.sidebar.number_input('Save a frame every n iter (0 for no progress video)', 0, value=25)
-show_every = st.sidebar.number_input('Show progress every n interations', 1, value=500, step=50)
+show_every = st.sidebar.number_input('Show progress every n interations', 1, value=100, step=50)
 
 sizes = get_sizes(max_dim, min_size)
 # TODO: Is this appropriate for cuts??
