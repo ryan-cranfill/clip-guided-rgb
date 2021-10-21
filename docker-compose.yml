@@ -1,0 +1,28 @@
+version: "3.8"
+
+x-base: &base
+  build:
+    context: .
+    dockerfile: ./Dockerfile
+  image: clip-rgb:latest
+  volumes:
+    - ./:/code
+  working_dir: /code
+  shm_size: 4g
+  ulimits:
+    memlock: -1
+    stack: 97108864
+
+services:
+  streamlit:
+    <<: *base
+    ports:
+      - '8501:8501'  # streamlit
+    entrypoint: sh -l -c "streamlit run app.py"
+    container_name: clip-rgb-streamlit
+  jupyter:
+    <<: *base
+    ports:
+      - '8888:8888'  # streamlit
+    entrypoint: sh -l -c "jupyter lab"
+    container_name: clip-rgb-jupyter
