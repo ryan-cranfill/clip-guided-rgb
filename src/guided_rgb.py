@@ -56,49 +56,56 @@ def show_img(t, streamlit=False, display_el=None):
         display(img)
 
 
-def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, learning_rate=1e-2, loss_lerp=0.6,
+def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32,
+        starting_learning_rate=1e-2, epochs=1, loss_lerp=0.6,
         use_weighted_ratios=True, streamlit=False, save_every=None, show_every=500, ):
-    if streamlit:
-        display_cols = create_display_cols(show_every, steps)
-        iterator = stqdm(range(steps), desc=f'Resolution: {size}')
-    else:
-        iterator = trange(steps)
-
     z2 = F.interpolate(t, (size, size), mode='bicubic')
     t = z2.detach().clone().requires_grad_(True)
-    opt = torch.optim.Adam([t], lr=learning_rate)
+
+    opt = torch.optim.Adam([t], lr=starting_learning_rate)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.9)
+
     saved_frames = []
 
-    for i in iterator:
-        opt.zero_grad()
+    epoch_iterator = stqdm(range(epochs), desc=f'Epoch') if streamlit else trange(epochs)
+    for e in epoch_iterator:
+        if streamlit:
+            display_cols = create_display_cols(show_every, steps)
+            iterator = stqdm(range(steps), desc=f'Resolution: {size}')
+        else:
+            iterator = trange(steps)
 
-        ratios = torch.cat([torch.ones(1), torch.rand(ncut)]).cuda()
+        for i in iterator:
+            opt.zero_grad()
 
-        crops = get_crops(t, ratios, max_sz, min_sz)
-        loss_avg = 0.
-        loss = 0.
-        weighted_ratios = ratios / ratios.sum() if use_weighted_ratios else torch.ones_like(ratios).to(DEVICE)
+            ratios = torch.cat([torch.ones(1), torch.rand(ncut)]).cuda()
 
-        embeds = model.encode_image(crops)
+            crops = get_crops(t, ratios, max_sz, min_sz)
+            loss_avg = 0.
+            loss = 0.
+            weighted_ratios = ratios / ratios.sum() if use_weighted_ratios else torch.ones_like(ratios).to(DEVICE)
 
-        for embed, ratio in zip(embeds, weighted_ratios):
-            x = F.normalize(embed, dim=-1)
-            loss += torch.sqrt(criterion(x, y)) * ratio
+            embeds = model.encode_image(crops)
 
-        loss.backward()
-        opt.step()
-        loss_avg = loss if loss_avg == 0. else (loss_avg * loss_lerp + loss * (1 - loss_lerp))
-        if i % 100 == 0:
-            print(loss_avg.item())
-        if i % show_every == 0:
-            show_img(t, streamlit, display_cols.pop(0))
-        if save_every and i % save_every == 0:
-            byte = BytesIO()
-            saved_frames.append(byte)
-            PIL.Image.fromarray(
-                (t.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)[0].cpu().numpy(),
-                'RGB'
-            ).save(byte, format='GIF')
+            for embed, ratio in zip(embeds, weighted_ratios):
+                x = F.normalize(embed, dim=-1)
+                loss += torch.sqrt(criterion(x, y)) * ratio
+
+            loss.backward()
+            opt.step()
+            loss_avg = loss if loss_avg == 0. else (loss_avg * loss_lerp + loss * (1 - loss_lerp))
+            if i % 100 == 0:
+                print(loss_avg.item())
+            if i % show_every == 0:
+                show_img(t, streamlit, display_cols.pop(0))
+            if save_every and i % save_every == 0:
+                byte = BytesIO()
+                saved_frames.append(byte)
+                PIL.Image.fromarray(
+                    (t.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)[0].cpu().numpy(),
+                    'RGB'
+                ).save(byte, format='GIF')
+        scheduler.step()
 
     show_img(t, streamlit)
     if not save_every:
