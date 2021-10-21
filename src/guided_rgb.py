@@ -1,16 +1,15 @@
 import PIL
-import clip
-import math
 import torch
 import streamlit as st
 import torch.nn.functional as F
 from io import BytesIO
 from tqdm import trange
+from stqdm import stqdm
 from IPython.display import display
 from torchvision.transforms import *
 
-from src.utils import frames_to_gif
-from src.settings import CLIP_MODEL_PATH, DEVICE
+from src.utils import frames_to_gif, create_display_cols
+from src.settings import DEVICE
 
 
 def get_sizes(sz, min_sz=32):
@@ -57,28 +56,24 @@ def show_img(t, streamlit=False, display_el=None):
         display(img)
 
 
-def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, use_weighted_ratios=True, streamlit=False, save_every=None, show_every=500):
+def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, learning_rate=1e-2, loss_lerp=0.6,
+        use_weighted_ratios=True, streamlit=False, save_every=None, show_every=500, ):
     if streamlit:
-        progress = st.progress(0.)
-        img_per_col = 4
-        num_imgs = math.ceil(steps / show_every)
-        num_rows = math.ceil(num_imgs / img_per_col)
-        display_cols = []
-        for i in range(num_rows):
-            display_cols.extend(st.columns(img_per_col))
+        display_cols = create_display_cols(show_every, steps)
+        iterator = stqdm(range(steps), desc=f'Resolution: {size}')
+    else:
+        iterator = trange(steps)
 
     z2 = F.interpolate(t, (size, size), mode='bicubic')
     t = z2.detach().clone().requires_grad_(True)
-    show_img(t)
-    opt = torch.optim.Adam([t], lr=lr)
+    opt = torch.optim.Adam([t], lr=learning_rate)
     saved_frames = []
-    for i in trange(steps):
+
+    for i in iterator:
         opt.zero_grad()
 
-        ratios = [torch.ones(1).cuda()]
-        for j in range(ncut):
-            ratios.append(torch.rand(1).cuda())
-        ratios = torch.cat(ratios)
+        ratios = torch.cat([torch.ones(1), torch.rand(ncut)]).cuda()
+
         crops = get_crops(t, ratios, max_sz, min_sz)
         loss_avg = 0.
         loss = 0.
@@ -95,8 +90,6 @@ def fit(model, t, y, size, steps=1000, ncut=8, max_sz=224, min_sz=32, use_weight
         loss_avg = loss if loss_avg == 0. else (loss_avg * loss_lerp + loss * (1 - loss_lerp))
         if i % 100 == 0:
             print(loss_avg.item())
-            if streamlit:
-                progress.progress(i / steps)
         if i % show_every == 0:
             show_img(t, streamlit, display_cols.pop(0))
         if save_every and i % save_every == 0:
@@ -118,28 +111,3 @@ f = Compose([Resize(224),
              Lambda(lambda x: torch.clamp((x + 1) / 2, 0, 1)),
              RandomGrayscale(p=.2),
              Lambda(lambda x: x + torch.randn_like(x) * 0.01)])
-
-# set parameters and train
-prompt = 'a landscape containing knights riding on the horizon by Greg Rutkowski'  # text prompt
-seed = 0
-torch.manual_seed(seed)
-
-szs = get_sizes(1024, 64)
-print(szs)  # getting sizes
-steps = [2000] * len(szs)  # getting number of steps per size
-cuts = [8, 8, 8, 16, 24]  # number of image cuts for CLIP loss per iteration
-max_szs = [64] * len(szs)  # max cut size (pixels)
-min_szs = [0.2] * len(szs)  # min cut size (pixel or image size ratio)
-
-lr = 1e-2
-loss_lerp = 0.6  # used for display only
-
-# encoded_prompt = model.encode_text(clip.tokenize(prompt).to(DEVICE))
-# y = F.normalize(encoded_prompt, dim=-1)
-
-# init image, can be replaced with a photo
-# z = torch.rand((1, 3, szs[0], szs[0]), device=DEVICE, requires_grad=True)
-
-# for size, step, cut, max_sz, min_sz in zip(szs, steps, cuts, max_szs, min_szs):
-#     print(size, step, cut)
-#     z = fit(z, size, steps=step, ncut=cut, max_sz=max_sz, min_sz=min_sz)

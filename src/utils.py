@@ -1,3 +1,5 @@
+import math
+
 import clip
 import streamlit as st
 import torch.nn.functional as F
@@ -27,3 +29,14 @@ def frames_to_gif(byteframes, duration=5):
     length_per_frame = (duration / len(gifs)) * 10
     gifs[0].save(temp, append_images=gifs[1:], save_all=True, format='GIF', optimize=False, loop=0, duration=length_per_frame)
     return temp
+
+
+def create_display_cols(show_every, steps, img_per_col=4):
+    num_imgs = math.ceil(steps / show_every)
+    num_rows = math.ceil(num_imgs / img_per_col)
+
+    display_cols = []
+    for i in range(num_rows):
+        display_cols.extend(st.columns(img_per_col))
+
+    return display_cols

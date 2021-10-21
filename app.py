@@ -18,9 +18,10 @@ y = encode_prompt(model, prompt)
 uploaded_file = st.file_uploader("Upload Base Image (Optional)")
 max_dim = st.number_input('Max Dimension', 64, 2048, 1024)
 default_steps = st.number_input('Default number of steps per resolution', 1, value=2000, step=100)
+learning_rate = st.number_input('Learning Rate', 0., value=1e-2)
 
 save_frames_every = st.sidebar.number_input('Save a frame every n iter (0 for no progress video)', 0, value=25)
-show_every = st.sidebar.number_input('Show progress every n interations', 1, value=500)
+show_every = st.sidebar.number_input('Show progress every n interations', 1, value=500, step=50)
 
 sizes = get_sizes(max_dim, 64)
 # TODO: Is this appropriate for cuts??
@@ -58,6 +59,7 @@ if st.button('Go!'):
             ncut=cut,
             max_sz=max_sz,
             min_sz=min_sz,
+            learning_rate=learning_rate,
             streamlit=True,
             save_every=save_frames_every,
             show_every=show_every
